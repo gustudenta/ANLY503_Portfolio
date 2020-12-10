@@ -1,0 +1,529 @@
+---
+title: "Music Visual Analysis"
+output: 
+  flexdashboard::flex_dashboard:
+    storyboard: true
+    #orientation: columns
+    #vertical_layout: scroll
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+library(dplyr)
+library(scales)
+library(plotly)
+library(reshape2)
+library(ggpubr)
+library(wordcloud)
+library(RColorBrewer)
+library(wordcloud2)
+library(tm)
+library(tidyverse)
+library(rvest)
+library(magrittr)
+library(ggmap)
+library(stringr)
+library(data.table)
+library(networkD3)
+```
+
+
+```{r include=FALSE}
+theme_tiffany <- function(){ 
+    font <- "Times"   #assign font family up front
+    
+    theme_minimal() %+replace%    #replace elements we want to change
+    
+    theme(
+      
+      #grid elements
+      panel.grid.major = element_blank(),    #strip major gridlines
+      panel.grid.minor = element_blank(),    #strip minor gridlines
+      axis.ticks = element_blank(),          #strip axis ticks
+      
+      #since theme_minimal() already strips axis lines, 
+      #we don't need to do that again
+      
+      #text elements
+      plot.title = element_text(             #title
+                   family = font,            #set font family
+                   size = 20,                #set font size
+                   face = 'bold',            #bold typeface
+                   hjust = 0,                #left align
+                   vjust = 2),               #raise slightly
+      
+      axis.line = element_line(size = 0.2, colour = "black"),
+      
+      plot.subtitle = element_text(          #subtitle
+                   family = font,            #font family
+                   size = 14),               #font size
+      
+      plot.caption = element_text(           #caption
+                   family = font,            #font family
+                   size = 9,                 #font size
+                   hjust = 1),               #right align
+      
+      axis.title = element_text(             #axis titles
+                   family = font,            #font family
+                   face="bold",
+                   size = 10),               #font size
+      
+      axis.text = element_text(              #axis text
+                   family = font,            #axis family
+                   face="bold",
+                   size = 9),                #font size
+      
+      axis.text.x = element_text(            #margin for axis text
+                    margin=margin(5, b = 10))
+      
+      #since the legend often requires manual tweaking 
+      #based on plot content, don't define it here
+    )
+}
+```
+
+
+About {.storyboard}
+=========================================
+Abstract
+-----------------------------------------
+
+As a data scientist student and a music enthusiast, I decided to find some music data and do visual analysis to find different popular genre by countries and how music change over years. 
+
+Dashboard Contents:
+
+1. Music genre and artists by country
+
+2. EDA of audio features
+
+3. How music changes: all music v.s. popular music
+
+
+Datasets are listed here:
+
+Spotify Dataset 1921-2020, 160k+ Tracks: https://www.kaggle.com/yamaerenay/spotify-dataset-19212020-160k-tracks
+
+Music Artists Popularity: https://www.kaggle.com/pieca111/music-artists-popularity
+
+Top 50 Spotify Songs By Each Country: 
+https://www.kaggle.com/leonardopena/top-50-spotify-songs-by-each-country
+
+Definitions
+-----------------------------------------
+
+Some definitions of audio and track features are listed below:
+
+Acousticness: A confidence measure from 0.0 to 1.0 of whether the track is acoustic. 1.0 represents high confidence the track is acoustic. 
+
+Danceability: Danceability describes how suitable a track is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity. A value of 0.0 is least danceable and 1.0 is most danceable.
+
+Duration_ms: The duration of the track in milliseconds.
+
+Energy: Energy is a measure from 0.0 to 1.0 and represents a perceptual measure of intensity and activity. Typically, energetic tracks feel fast, loud, and noisy. For example, death metal has high energy, while a Bach prelude scores low on the scale. 
+
+Instrumentalness: Predicts whether a track contains no vocals. “Ooh” and “aah” sounds are treated as instrumental in this context. Rap or spoken word tracks are clearly “vocal”. The closer the instrumentalness value is to 1.0, the greater likelihood the track contains no vocal content. Values above 0.5 are intended to represent instrumental tracks, but confidence is higher as the value approaches 1.0.
+
+Liveness: Detects the presence of an audience in the recording. Higher liveness values represent an increased probability that the track was performed live. A value above 0.8 provides strong likelihood that the track is live.
+
+Loudness: The overall loudness of a track in decibels (dB). Loudness values are averaged across the entire track and are useful for comparing relative loudness of tracks. Loudness is the quality of a sound that is the primary psychological correlate of physical strength (amplitude). Values typical range between -60 and 0 db.
+
+Mode: Mode indicates the modality (major or minor) of a track, the type of scale from which its melodic content is derived. Major is represented by 1 and minor is 0.
+
+Explicit: Whether or not the track has explicit lyrics ( true = yes it does; false = no it does not OR unknown).
+
+Popularity: Generally speaking, songs that are being played a lot now will have a higher popularity than songs that were played a lot in the past.
+
+Speechiness: Speechiness detects the presence of spoken words in a track. The more exclusively speech-like the recording (e.g. talk show, audio book, poetry), the closer to 1.0 the attribute value.
+
+Tempo: The overall estimated tempo of a track in beats per minute (BPM). In musical terminology, tempo is the speed or pace of a given piece and derives directly from the average beat duration.
+
+Valence: A measure from 0.0 to 1.0 describing the musical positiveness conveyed by a track. Tracks with high valence sound more positive (e.g. happy, cheerful, euphoric), while tracks with low valence sound more negative (e.g. sad, depressed, angry). 
+
+
+
+
+EDA {.storyboard}
+=========================================
+
+### Distributions Of Audio Features 
+
+```{r, fig.width= 10, fig.height= 7}
+data = read.csv('~/Desktop/503data/data.csv')
+data = data %>% rename(duration = duration_ms)
+
+data %>%
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+  ggtitle("Distributions Of Different Features")+
+    facet_wrap(~ key, scales = "free") +
+    geom_histogram(bins = 30) + theme_tiffany()
+```
+
+---
+
+To better understand how music change over years, I found a dataset based on Spotify music including more than 170k songs with audio features from 1921 to 2020. By analyzing how audio features change, we can better understand people's music preference. 
+
+
+
+### Popular Music in 2020
+
+```{r}
+data_2020 = data[which(data$year =='2020'), ]
+data_2020 = data_2020[order(-data_2020$popularity),]
+data_2020 <- head(data_2020,15)
+data_2020 = data_2020[,c('name', 'popularity')]
+
+data_2020$name <- factor(data_2020$name,                                    
+                  levels = data_2020$name[order(data_2020$popularity, decreasing = FALSE)])
+  
+ggplot(data_2020, aes(x = name, y = popularity, main="Top Music in 2020")) +
+         geom_bar(stat = "identity") +
+  ggtitle("Top Music in 2020")+
+         coord_flip() + scale_y_continuous(name="Popularity") +
+  scale_x_discrete(name="Song Name") + theme_tiffany()
+#theme(axis.text.x = element_text(face="bold", color="#008000",
+#                           size=8, angle=0),
+#          axis.text.y = element_text(face="bold", color="#008000",
+#                           size=8, angle=0))
+```
+
+---
+
+These are 15 top songs in 2020 with descending popularity. 
+
+
+
+Music By Country {.storyboard}
+=========================================
+
+### Number Of Artists By Country
+
+```{r, fig.width=15, fig.height= 20}
+country = read.csv('~/Desktop/503data/artists.csv')
+country <- data.table(country)
+country = country[, .(artists_number = length(unique(artist_mb))), by = country_mb]
+country = country[order(country$country_mb),]
+
+country$country_mb <- recode(country$country_mb
+                                  ,'United States' = 'USA'
+                                  ,'United Kingdom' = 'UK'
+                                  )
+
+map.world <- map_data("world")
+map.world_joined <- left_join(map.world, country, by = c('region' = 'country_mb'))
+map.world_joined <- map.world_joined %>% mutate(fill_flg = ifelse(is.na(artists_number),F,T))
+
+artists_by_country = ggplot(map.world_joined, aes(long, lat, group = group))+
+  geom_polygon(aes(fill = artists_number,
+                   text = paste('Country: ', region, 
+                        '<br>No.Artists: ', artists_number)), 
+               color = "white")+
+  #scale_fill_viridis(trans = 'log')+
+  #scale_fill_viridis(trans = "log", name="Number of artists", breaks=c(0,20,100,1000,10000))+
+  labs(title = "Music Artists Number By Country", fill = 'Artists Amount') + theme_tiffany()
+
+  #+scale_fill_viridis_c(option = "C")+
+  #theme_classic()
+ggplotly(artists_by_country, tooltip = 'text') 
+#artists_by_country
+```
+
+--- 
+
+Hovering on the map to see the number of music artists in each country. Clearly, US has the largest amount of music artists. UK, Germany, and Japan all have pretty large amount of musicians. 
+
+The dataset consists of over 1.4 Million musical artists present in MusicBrainz database -- their names, tags, and popularity (listeners/scrobbles), based on data scraped from last.fm.
+
+Last.fm suffers from the problem of multiple artists sharing the same profile page due to the fact that they have the same name. This means that for artists that have non-unique name it is not possible to establish how many of the listeners/scrobbles should be attributed to whom. 
+
+### Network Analysis On Countries V.S. Music Genres (focusing on USA, Japan, Germany)
+
+```{r}
+country_genre = read.csv('~/Desktop/503data/top50contry.csv')
+cleaned_data = country_genre %>% count(country, top.genre, sort = TRUE)
+cleaned_data = cleaned_data %>% filter(
+  country == "usa" | country == "japan" | country == "germany"
+  )
+
+nodes <- data.frame(
+  name=c(as.character(cleaned_data$country), as.character(cleaned_data$top.genre)) %>% 
+    unique()
+)
+
+cleaned_data$IDsource <- match(cleaned_data$country, nodes$name)-1 
+cleaned_data$IDtarget <- match(cleaned_data$top.genre, nodes$name)-1
+
+p <- sankeyNetwork(Links = cleaned_data, Nodes = nodes, Source = "IDsource", Target = "IDtarget", 
+              Value = "n", NodeID = "name", fontSize = 12, nodeWidth = 30, units = 'TWh', 
+              LinkGroup = 'country')
+#p <- htmlwidgets::prependContent(p, htmltools::tags$h1("Sankey Network Diagram Between Countries And Genre"))
+p
+```
+
+--- 
+
+Since USA, Germany, and Japan all have large amount of artists, I decided to look into the popular genre in these countries. I chose top 50 songs each year (from 1942 and 2019) for these three countries on Spotify with genre. Both USA and Germany have a large amount popular music which are belong to adult standards genre. Adult standards is an American radio format that plays popular, well-known songs from previous decades. The largest audience for adult standards is adults over the age of 50, who grew up listening to these adult standard songs that are now considered oldies. Also, we can see Germany and USA have many overlapping genres which means people in USA and Germany have similar preference. Dance pop is a genre which all three countries are interested in. Japanese people are interested in Japanese pop music.  
+
+
+
+### Popular Artists In Japan
+
+```{r}
+data2 = read.csv('~/Desktop/503data/top50contry.csv')
+japan_data = data2[which(data2$country =='japan'), ]
+japan_data = aggregate(japan_data[, 'pop'], list(japan_data$artist), mean)
+
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "Popular Music Artists In Japan")
+
+wordcloud(words = japan_data$Group.1, freq = japan_data$x, min.freq = 5, scale=c(2, .2),random.color = FALSE,        
+          max.words=200, random.order=FALSE, colors= c("lightsteelblue1","lightsteelblue2","lightsteelblue3","lightsteelblue"))
+```
+
+---
+
+Based on top 50 songs in Japan from 1942 and 2019, I created word cloud to show popular artists names. Since I extract data on December each year, many popular songs are related with Christmas. Clearly the most popular singer is Mariah Carey who has a very popular Christamas song 'All I Want for Christmas Is You'. 
+
+
+
+### Network Analysis On Countries V.S. Music Genres (focusing on Canada, France, India)
+
+```{r}
+country_genre = read.csv('~/Desktop/503data/top50contry.csv')
+cleaned_data = country_genre %>% count(country, top.genre, sort = TRUE)
+cleaned_data = cleaned_data %>% filter(
+  country == "canada" | country == "france" | country == "india"
+  )
+
+nodes <- data.frame(
+  name=c(as.character(cleaned_data$country), as.character(cleaned_data$top.genre)) %>% 
+    unique()
+)
+
+cleaned_data$IDsource <- match(cleaned_data$country, nodes$name)-1 
+cleaned_data$IDtarget <- match(cleaned_data$top.genre, nodes$name)-1
+
+p <- sankeyNetwork(Links = cleaned_data, Nodes = nodes, Source = "IDsource", Target = "IDtarget", 
+              Value = "n", NodeID = "name", fontSize = 12, nodeWidth = 30, units = 'TWh', 
+              LinkGroup = 'country')
+#p <- htmlwidgets::prependContent(p, htmltools::tags$h1("Sankey Network Diagram Between Countries And Genre"))
+p
+```
+
+--- 
+
+Then I also take a look at music genres within India, Canada, and France. Clearly, these three countries all like Canadian pop music, rap, annd electronic pop music. Indian's favorite is desi pop, and French people's favorite is French Hip Pop music. 
+
+
+
+
+Music Features Change Over Years {.storyboard}
+=========================================
+
+### Music Mode Over years
+
+```{r}
+plotdata <- data %>%
+  group_by(year, mode) %>%
+  summarize(n = n()) %>% 
+  mutate(pct = n/sum(n),
+         lbl = scales::percent(pct))
+
+mode_over_year = ggplot(plotdata, 
+       aes(x = year,
+           y = pct,
+           fill = factor(mode,
+                         level = c(0,1),
+                         labels = c('Minor', 'Major')),
+           text = paste('Year: ', year, 
+                        '<br>Mode: ', factor(mode,level = c(0,1),labels = c('Minor', 'Major')), 
+                        '<br>Percent: ', paste(round(100*pct, 1), "%")))) + 
+  geom_bar(stat = "identity",
+           position = "fill") +
+  geom_col(width = 0.5)+
+  scale_y_continuous(breaks = seq(0, 1, .2), 
+                     label = percent) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(y = "Percent", 
+       fill = "Mode",
+       x = "Year",
+       title = "Major vs Minor Over Years") +theme_tiffany()
+  #theme_minimal()
+
+ggplotly(mode_over_year, tooltip = 'text') 
+```
+
+---
+
+Usually, music with major keys have a bright, happy, and cheerful melody; while minor keys sound more melancholy and sad. Here I use this as an indicator showing the percentage of happy songs and sad songs. Over years, we have more happy songs than sad songs, even if the percentage of sad songs increased much in recent years.
+
+
+### Correlation Between Audio Features
+
+```{r}
+heat_map_data = data[,c('liveness', 'valence', 'danceability', 'loudness', 'energy')]
+cormat <- round(cor(heat_map_data),2)
+# Get lower triangle of the correlation matrix
+  get_lower_tri<-function(cormat){
+    cormat[upper.tri(cormat)] <- NA
+    return(cormat)
+  }
+  # Get upper triangle of the correlation matrix
+  get_upper_tri <- function(cormat){
+    cormat[lower.tri(cormat)]<- NA
+    return(cormat)
+  }
+  
+upper_tri <- get_upper_tri(cormat)
+##upper_tri
+  
+reorder_cormat <- function(cormat){
+# Use correlation between variables as distance
+dd <- as.dist((1-cormat)/2)
+hc <- hclust(dd)
+cormat <-cormat[hc$order, hc$order]
+}
+
+cormat <- reorder_cormat(cormat)
+upper_tri <- get_upper_tri(cormat)
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+
+# Create a ggheatmap
+ggheatmap <- ggplot(melted_cormat, aes(Var2, Var1, fill = value))+
+  geom_tile(color = "white")+
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+    name="Correlation") +
+  theme_minimal()+ # minimal theme
+ theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+    size = 12, hjust = 1))+
+ coord_fixed()
+
+heat_map = ggheatmap + 
+geom_text(aes(Var2, Var1, label = value), color = "black", size = 4) + theme_tiffany() + labs(title = 'Heatmap Of Audio Features')
+#theme(
+#  axis.title.x = element_blank(),
+#  axis.title.y = element_blank(),
+#  panel.grid.major = element_blank(),
+#  panel.border = element_blank(),
+#  panel.background = element_blank(),
+#  axis.ticks = element_blank())+
+#  ggtitle(label = "Correlation Between Happy Music Features")
+  
+print(heat_map)
+```
+
+---
+
+When we talk about happy music, several features on top of my mind are liveness, danceability, energy, valence, loudness. However, what's the correlation between them? Dancebility music must have high loudness? 
+
+Based on this heatmap, we can see there is a high positive correlationn between loudness and energy, which means loud music can bring people energy, and energetic music usually sound loudly. And danceability has negative correlation between liveness, which kind of surprises me. Then I realized that higher liveness values represent an increased probability that the track was performed live, according to the definition. And danceability is based on the combination of music elements including tempo, rhythm stability, beat strength, and overall regularity. Therefore, it makes sense that there is a negative correlation between these two features. Also, the same reason for zero correlation between valence and liveness. But we can see valence and danceability have positive correlation. 
+
+
+### Time Series Plots Of Audio Features
+
+```{r}
+newdata = data[which(data$year >='1980'& data$year <='2020'), ]
+newdata = aggregate(newdata[, c('liveness', 'danceability', 'valence', 'loudness', 
+                                'acousticness', 'energy', 'instrumentalness', 'speechiness', 'tempo')], 
+                    list(newdata$year), mean)
+newdata = newdata %>% rename(year = Group.1)
+
+
+liveness_data <- ggplot(newdata, aes(x = year, y = liveness)) + 
+  geom_line(color = "#E46726") + theme_tiffany()
+
+danceability_data <- ggplot(newdata, aes(x = year, y = danceability)) + 
+  geom_line(color = "#E46726") + theme_tiffany()
+
+valence_data <- ggplot(newdata, aes(x = year, y = valence)) + 
+  geom_line(color = "#E46726") + theme_tiffany()
+
+loudness_data <- ggplot(newdata, aes(x = year, y = loudness)) + 
+  geom_line(color = "#E46726") + theme_tiffany()
+
+acousticness_data <- ggplot(newdata, aes(x = year, y = acousticness)) + 
+  geom_line(color = "#E46726") + theme_tiffany()
+
+energy_data <- ggplot(newdata, aes(x = year, y = energy)) + 
+  geom_line(color = "#E46726") + theme_tiffany()
+
+instrumentalness_data <- ggplot(newdata, aes(x = year, y = instrumentalness)) + 
+  geom_line(color = "#E46726") + theme_tiffany()
+
+speechiness_data <- ggplot(newdata, aes(x = year, y = speechiness)) + 
+  geom_line(color = "#E46726") + theme_tiffany()
+
+tempo_data <- ggplot(newdata, aes(x = year, y = tempo)) + 
+  geom_line(color = "#E46726") + theme_tiffany()
+
+fig = ggarrange(liveness_data, danceability_data, valence_data,loudness_data,acousticness_data,
+          energy_data,instrumentalness_data,speechiness_data,tempo_data,
+          #labels = c("A", "B", "C"),
+          ncol = 3, nrow = 3) 
+annotate_figure(fig, top = text_grob("How Audio Features Change In Last 40 Years", face = "bold", size = 14))
+```
+
+---
+
+Over latest 40 years, it is interesting to see that liveness, valence, acousticness, and instrumentalness all have decreasing trend; however, Danceability, loudness, energy, and speechiness all have an increasing trend. Tempo is a feature which fluctuates between 117 and 125. 
+
+
+
+### Time Series Plots Of Audio Features Focusing On Popular Music
+
+```{r}
+newdata = data[which(data$year >='1980'& data$year <='2020' & data$popularity >= 80), ]
+newdata = aggregate(newdata[, c('liveness', 'danceability', 'valence', 'loudness', 
+                                'acousticness', 'energy', 'instrumentalness', 'speechiness', 'tempo')], 
+                    list(newdata$year), mean)
+newdata = newdata %>% rename(year = Group.1)
+
+
+liveness_data <- ggplot(newdata, aes(x = year, y = liveness)) + 
+  geom_line(color = "navy") + theme_tiffany()
+
+danceability_data <- ggplot(newdata, aes(x = year, y = danceability)) + 
+  geom_line(color = "navy") + theme_tiffany()
+
+valence_data <- ggplot(newdata, aes(x = year, y = valence)) + 
+  geom_line(color = "navy") + theme_tiffany()
+
+loudness_data <- ggplot(newdata, aes(x = year, y = loudness)) + 
+  geom_line(color = "navy") + theme_tiffany()
+
+acousticness_data <- ggplot(newdata, aes(x = year, y = acousticness)) + 
+  geom_line(color = "navy") + theme_tiffany()
+
+energy_data <- ggplot(newdata, aes(x = year, y = energy)) + 
+  geom_line(color = "navy") + theme_tiffany()
+
+instrumentalness_data <- ggplot(newdata, aes(x = year, y = instrumentalness)) + 
+  geom_line(color = "navy") + theme_tiffany()
+
+speechiness_data <- ggplot(newdata, aes(x = year, y = speechiness)) + 
+  geom_line(color = "navy") + theme_tiffany()
+
+tempo_data <- ggplot(newdata, aes(x = year, y = tempo)) + 
+  geom_line(color = "navy") + theme_tiffany()
+
+fig2 = ggarrange(liveness_data, danceability_data, valence_data,loudness_data,acousticness_data,
+          energy_data,instrumentalness_data,speechiness_data,tempo_data,
+          #labels = c("A", "B", "C"),
+          ncol = 3, nrow = 3)
+annotate_figure(fig2, top = text_grob("How Popular Music Audio Features Change In Last 40 Years", face = "bold", size = 14))
+```
+
+---
+
+If we only focus on popular music (popularity is larger than 80), over the last 40 years, we can see there is no clear changing trend for audio features. Loudness is the only feature that have slightly increasing trend if we compare 1980-2000 and 2000-2020. Most features fluctuates between a range. Therefore, we can say for those popular music, people did not change much preference. 
+
+
+
+

@@ -1,0 +1,340 @@
+
+### ANLY 503 Assignment 6
+
+### Geospatial Visualization
+
+
+```{r include=FALSE}
+library(dplyr)
+library(tidyr)
+library(readxl)
+library(janitor)
+library(tidyverse)
+library(ggplot2)
+library(sf)
+library(spData, warn.conflicts = F, quietly = T)
+library(maps, warn.conflicts = F, quietly = T)
+library(viridis)
+library(ggpubr)
+library(cowplot)
+library(stringr)
+```
+
+
+
+
+```{r include=FALSE}
+library(reticulate)
+py_install('pandas')
+py_install('numpy')
+py_install('matplotlib')
+py_install('plotly')
+```
+
+```{python include=FALSE}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.offline as py
+```
+
+
+
+```{python include=FALSE}
+election_data = pd.read_csv('~/Desktop/503data/countypres_2000-2016.csv')
+#election_data.head(5)
+election_data = election_data[(election_data['year']==2008) | 
+                             (election_data['year']==2012) | 
+                             (election_data['year']==2016)]
+election_data = election_data[(election_data['party']=='democrat') | 
+                             (election_data['party']=='republican')]
+election_data['won_proportion'] = election_data['candidatevotes']/election_data['totalvotes']
+election_data = election_data[['year', 'state', 'state_po', 'FIPS', 'county', 'party', 'won_proportion']]
+election_data = election_data.dropna(subset=['FIPS'])
+election_data = election_data.astype({'FIPS': int})
+election_data = election_data.astype({'FIPS': str})
+election_data['FIPS'] = election_data['FIPS'].apply(lambda x: x.zfill(5))
+election_data = election_data.reset_index(drop = True)
+election_data.head(10)
+#election_data.to_csv('new_election_data.csv')
+```
+
+
+
+```{python include=FALSE}
+unemployment_data = pd.read_excel('~/Desktop/503data/Unemployment.xls', sheet_name = 'Unemployment Med HH Income', skiprows = 7)
+unemployment_data.head(5)
+unemployment_data = unemployment_data[['FIPStxt', 'Stabr', 'area_name', 
+                                       'Unemployment_rate_2008', 'Unemployment_rate_2012', 'Unemployment_rate_2016']]
+unemployment_data = pd.melt(unemployment_data, id_vars=["FIPStxt", 'Stabr', 'area_name'], var_name="year", value_name="unemployment_rate")
+unemployment_data.year = unemployment_data.year.apply(lambda x: x[-4:])
+unemployment_data = unemployment_data.astype({'FIPStxt': str})
+unemployment_data['FIPStxt'] = unemployment_data['FIPStxt'].apply(lambda x: x.zfill(5))
+unemployment_data = unemployment_data.astype({'year': str})
+unemployment_data = unemployment_data.astype({'FIPStxt': str})
+unemployment_data = unemployment_data.rename(columns={"FIPStxt": "FIPS"})
+unemployment_data.head(5)
+#unemployment_data.to_csv('new_unemployment.csv')
+```
+
+
+
+
+```{r include=FALSE}
+new_election_data = read_csv('~/Desktop/503data/new_election_data.csv')
+new_unemployment_data = read.csv('~/Desktop/503data/new_unemployment.csv')
+new_unemployment_data$FIPS = as.character(new_unemployment_data$FIPS)
+new_unemployment_data$FIPS = str_pad(new_unemployment_data$FIPS, 5, pad = "0")
+```
+
+
+```{r include=FALSE}
+shape = st_read('~/Desktop/503data/tl_2019_us_county-1/tl_2019_us_county.shp')
+tx_map = shape %>% filter(STATEFP =='48') %>% rename('FIPS'='GEOID')
+ca_map = shape %>% filter(STATEFP =='06') %>% rename('FIPS'='GEOID')
+pa_map = shape %>% filter(STATEFP =='42') %>% rename('FIPS'='GEOID')
+```
+
+
+
+
+#### Texas
+
+```{r include=FALSE}
+
+# TX Election Vote in 2008
+election_tx_2008=new_election_data %>% select(c("year", "FIPS","state_po","party", "won_proportion"))%>% filter(state_po=='TX') %>% filter(year=='2008') %>% filter(party=='democrat')
+election_tx_2008 = tx_map %>% left_join(election_tx_2008[,c('FIPS',"won_proportion")],by='FIPS') 
+election_tx_2008_map = ggplot(election_tx_2008) +geom_sf(aes(geometry=geometry,fill=won_proportion))+
+  scale_fill_viridis(option = "plasma", direction = -1)+labs(title='Democrat Vote in TX in 2008', fill='Vote Proportion')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+# TX Unemployment in 2008
+unemploy_tx_2008=new_unemployment_data %>% filter(Stabr=='TX') %>% filter(year=='2008')
+unemploy_tx_2008=tx_map %>% left_join(unemploy_tx_2008, by='FIPS')
+unemploy_tx_2008_map = ggplot(unemploy_tx_2008)+geom_sf(aes(geometry=geometry,fill = unemployment_rate))+
+  scale_fill_viridis_c(option = "inferno", direction = -1)+labs(title='Unemployment Rate in Texas in 2008', fill='Unemployment Rate(%)')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+
+# TX Election Vote in 2012
+election_tx_2012=new_election_data %>% select(c("year", "FIPS","state_po","party", "won_proportion"))%>% filter(state_po=='TX') %>% filter(year=='2012') %>% filter(party=='democrat')
+election_tx_2012 = tx_map %>% left_join(election_tx_2012[,c('FIPS',"won_proportion")],by='FIPS') 
+election_tx_2012_map = ggplot(election_tx_2012) +geom_sf(aes(geometry=geometry,fill=won_proportion))+
+  scale_fill_viridis(option = "plasma", direction = -1)+labs(title='Democrat Vote in TX in 2012', fill='Vote Proportion')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+# TX Unemployment in 2012
+unemploy_tx_2012=new_unemployment_data %>% filter(Stabr=='TX') %>% filter(year=='2012')
+unemploy_tx_2012=tx_map %>% left_join(unemploy_tx_2012, by='FIPS')
+unemploy_tx_2012_map = ggplot(unemploy_tx_2012)+geom_sf(aes(geometry=geometry,fill = unemployment_rate))+
+  scale_fill_viridis_c(option = "inferno", direction = -1)+labs(title='Unemployment Rate in Texas in 2012', fill='Unemployment Rate(%)')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"),  
+                                           aspect.ratio =1,
+                                           axis.text=element_text(size=14),
+                                           axis.title=element_text(size=16,face="bold"))
+
+# TX Election Vote in 2016
+election_tx_2016=new_election_data %>% select(c("year", "FIPS","state_po","party", "won_proportion"))%>% filter(state_po=='TX') %>% filter(year=='2016') %>% filter(party=='democrat')
+election_tx_2016 = tx_map %>% left_join(election_tx_2016[,c('FIPS',"won_proportion")],by='FIPS') 
+election_tx_2016_map = ggplot(election_tx_2016) +geom_sf(aes(geometry=geometry,fill=won_proportion))+
+  scale_fill_viridis(option = "plasma", direction = -1)+labs(title='Democrat Vote in TX in 2016', fill='Vote Proportion')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+# TX Unemployment in 2016
+unemploy_tx_2016=new_unemployment_data %>% filter(Stabr=='TX') %>% filter(year=='2016')
+unemploy_tx_2016=tx_map %>% left_join(unemploy_tx_2016, by='FIPS')
+unemploy_tx_2016_map = ggplot(unemploy_tx_2016)+geom_sf(aes(geometry=geometry,fill = unemployment_rate))+
+  scale_fill_viridis_c(option = "inferno", direction = -1)+labs(title='Unemployment Rate in TX in 2016', fill='Unemployment Rate(%)')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+```
+
+
+```{r fig1, fig.height = 30, fig.width = 25, fig.align = "center", echo=FALSE}
+ggarrange(election_tx_2008_map, unemploy_tx_2008_map, election_tx_2012_map, unemploy_tx_2012_map, election_tx_2016_map, unemploy_tx_2016_map, ncol = 2, nrow=3, align = 'hv', widths = c(7,7,7,7,7,7))
+```
+
+
+Comments:
+
+By looking at the Vote ratio for Democrat in TX over these three elections years, most counties in TX had low votes for Democrat, but the west and south counties had pretty high votes for Democrat. The unemployment rate were similar in these three years.
+
+#### Californina
+
+```{r include=FALSE}
+
+# CA Election Vote in 2008
+election_ca_2008 = new_election_data %>% select(c("year", "FIPS","state_po","party", "won_proportion"))%>% filter(state_po=='CA') %>% filter(year=='2008') %>% filter(party=='democrat')
+election_ca_2008 = ca_map %>% left_join(election_ca_2008[,c('FIPS',"won_proportion")],by='FIPS') 
+election_ca_2008_map = ggplot(election_ca_2008) +geom_sf(aes(geometry=geometry,fill=won_proportion))+
+  scale_fill_viridis(option = "plasma", direction = -1)+labs(title='Democrat Vote in CA in 2008', fill='Vote Proportion')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"), legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+# CA Unemployment in 2008
+unemploy_ca_2008=new_unemployment_data %>% filter(Stabr=='CA') %>% filter(year=='2008')
+unemploy_ca_2008=ca_map %>% left_join(unemploy_ca_2008, by='FIPS')
+unemploy_ca_2008_map = ggplot(unemploy_ca_2008)+geom_sf(aes(geometry=geometry,fill = unemployment_rate))+
+  scale_fill_viridis_c(option = "inferno",direction = -1)+labs(title='Unemployment Rate in CA in 2008', fill='Unemployment Rate(%)') + 
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"), aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+# CA Election Vote in 2012
+election_ca_2012 = new_election_data %>% select(c("year", "FIPS","state_po","party", "won_proportion"))%>% filter(state_po=='CA') %>% filter(year=='2012') %>% filter(party=='democrat')
+election_ca_2012 = ca_map %>% left_join(election_ca_2012[,c('FIPS',"won_proportion")],by='FIPS') 
+election_ca_2012_map = ggplot(election_ca_2012) +geom_sf(aes(geometry=geometry,fill=won_proportion))+
+  scale_fill_viridis(option = "plasma", direction = -1)+labs(title='Democrat Vote in CA in 2012', fill='Vote Proportion')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"), legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+# CA Unemployment in 2012
+unemploy_ca_2012=new_unemployment_data %>% filter(Stabr=='CA') %>% filter(year=='2012')
+unemploy_ca_2012=ca_map %>% left_join(unemploy_ca_2012, by='FIPS')
+unemploy_ca_2012_map = ggplot(unemploy_ca_2012)+geom_sf(aes(geometry=geometry,fill = unemployment_rate))+
+  scale_fill_viridis_c(option = "inferno",direction = -1)+labs(title='Unemployment Rate in CA in 2012', fill='Unemployment Rate(%)') + 
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"), aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+# CA Election Vote in 2016
+election_ca_2016 = new_election_data %>% select(c("year", "FIPS","state_po","party", "won_proportion"))%>% filter(state_po=='CA') %>% filter(year=='2016') %>% filter(party=='democrat')
+election_ca_2016 = ca_map %>% left_join(election_ca_2016[,c('FIPS',"won_proportion")],by='FIPS') 
+election_ca_2016_map = ggplot(election_ca_2016) +geom_sf(aes(geometry=geometry,fill=won_proportion))+
+  scale_fill_viridis(option = "plasma", direction = -1)+labs(title='Democrat Vote in CA in 2016', fill='Vote Proportion')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"), legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+# CA Unemployment in 2016
+unemploy_ca_2016=new_unemployment_data %>% filter(Stabr=='CA') %>% filter(year=='2016')
+unemploy_ca_2016=ca_map %>% left_join(unemploy_ca_2016, by='FIPS')
+unemploy_ca_2016_map = ggplot(unemploy_ca_2016)+geom_sf(aes(geometry=geometry,fill = unemployment_rate))+
+  scale_fill_viridis_c(option = "inferno",direction = -1)+labs(title='Unemployment Rate in CA in 2016', fill='Unemployment Rate(%)') + 
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), 
+                                           panel.spacing.x=unit(5, "lines"), aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+```
+
+
+```{r fig2, fig.height = 30, fig.width = 25, fig.align = "center", echo=FALSE}
+ggarrange(election_ca_2008_map, unemploy_ca_2008_map, election_ca_2012_map, unemploy_ca_2012_map, election_ca_2016_map, unemploy_ca_2016_map, ncol = 2, nrow=3, align = 'hv', widths = c(7,7,7,7,7,7))
+```
+
+
+Comments:
+
+By looking at the Vote ratio for Democrat in CA over these three elections years, most counties in CA had high votes for Democrat, but the east and north counties had low votes for Democrat. The unemployment rate was higher in 2012 thann 2008 and 2016.
+
+
+#### Pennsylvania
+
+```{r include=FALSE}
+
+# PA Election Vote in 2008
+election_pa_2008=new_election_data %>% select(c("year", "FIPS","state_po","party", "won_proportion"))%>% filter(state_po=='PA') %>% filter(year=='2008') %>% filter(party=='democrat')
+election_pa_2008 = pa_map %>% left_join(election_pa_2008[,c('FIPS',"won_proportion")],by='FIPS') 
+election_pa_2008_map = ggplot(election_pa_2008) +geom_sf(aes(geometry=geometry,fill=won_proportion))+
+  scale_fill_viridis(option = "plasma", direction = -1)+labs(title='Democrat Vote in PA in 2008', fill='Vote Proportion')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title=element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+# PA Unemployment in 2008
+unemploy_pa_2008=new_unemployment_data %>% filter(Stabr=='PA') %>% filter(year=='2008')
+unemploy_pa_2008=pa_map %>% left_join(unemploy_pa_2008, by='FIPS')
+unemploy_pa_2008_map = ggplot(unemploy_pa_2008)+geom_sf(aes(geometry=geometry,fill = unemployment_rate))+
+  scale_fill_viridis_c(option = "inferno",direction = -1)+labs(title='Unemployment Rate in PA in 2008', fill='Unemployment Rate(%)')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+
+# PA Election Vote in 2012
+election_pa_2012=new_election_data %>% select(c("year", "FIPS","state_po","party", "won_proportion"))%>% filter(state_po=='PA') %>% filter(year=='2012') %>% filter(party=='democrat')
+election_pa_2012 = pa_map %>% left_join(election_pa_2012[,c('FIPS',"won_proportion")],by='FIPS') 
+election_pa_2012_map = ggplot(election_pa_2012) +geom_sf(aes(geometry=geometry,fill=won_proportion))+
+  scale_fill_viridis(option = "plasma", direction = -1)+labs(title='Democrat Vote in PA in 2012', fill='Vote Proportion')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title=element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+# PA Unemployment in 2012
+unemploy_pa_2012=new_unemployment_data %>% filter(Stabr=='PA') %>% filter(year=='2012')
+unemploy_pa_2012=pa_map %>% left_join(unemploy_pa_2012, by='FIPS')
+unemploy_pa_2012_map = ggplot(unemploy_pa_2012)+geom_sf(aes(geometry=geometry,fill = unemployment_rate))+
+  scale_fill_viridis_c(option = "inferno",direction = -1)+labs(title='Unemployment Rate in PA in 2012', fill='Unemployment Rate(%)')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+# PA Election Vote in 2016
+election_pa_2016=new_election_data %>% select(c("year", "FIPS","state_po","party", "won_proportion"))%>% filter(state_po=='PA') %>% filter(year=='2016') %>% filter(party=='democrat')
+election_pa_2016 = pa_map %>% left_join(election_pa_2016[,c('FIPS',"won_proportion")],by='FIPS') 
+election_pa_2016_map = ggplot(election_pa_2016) +geom_sf(aes(geometry=geometry,fill=won_proportion))+
+  scale_fill_viridis(option = "plasma", direction = -1)+labs(title='Democrat Vote in PA in 2016', fill='Vote Proportion')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title=element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+
+# PA Unemployment in 2016
+unemploy_pa_2016=new_unemployment_data %>% filter(Stabr=='PA') %>% filter(year=='2016')
+unemploy_pa_2016=pa_map %>% left_join(unemploy_pa_2016, by='FIPS')
+unemploy_pa_2016_map = ggplot(unemploy_pa_2016)+geom_sf(aes(geometry=geometry,fill = unemployment_rate))+
+  scale_fill_viridis_c(option = "inferno",direction = -1)+labs(title='Unemployment Rate in PA in 2016', fill='Unemployment Rate(%)')+
+  xlab('Longitude')+ylab('Latitude')+theme(plot.title = element_text(color = "black", size = 24, vjust = 1,hjust = 0.5, face="bold"),legend.title = element_text(color = "black", size = 18),
+                                           legend.text = element_text(color = "black", size = 18), panel.spacing.x=unit(5, "lines"),  aspect.ratio = 1,
+                                           axis.text=element_text(size=14),axis.title=element_text(size=16,face="bold"))
+
+```
+
+
+```{r fig3, fig.height = 30, fig.width = 25, fig.align = "center", echo=FALSE}
+ggarrange(election_pa_2008_map, unemploy_pa_2008_map, election_pa_2012_map, unemploy_pa_2012_map, election_pa_2016_map, unemploy_pa_2016_map, ncol = 2, nrow=3, align = 'hv', widths = c(7,7,7,7,7,7))
+```
+
+
+
+Comments:
+
+By looking at the Vote ratio for Democrat in PA over these three elections years, more counties in PA had high votes for Democrat in 2008 than 2012,The unemployment rate was higher in 2016 thann 2008 and 2012.
+
+

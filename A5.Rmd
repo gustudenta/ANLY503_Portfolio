@@ -1,0 +1,240 @@
+
+### ANLY 503 Assignment 5
+
+### Static Visualization
+
+#### Problem 1
+
+Explore all accounts. Create visualizations that combine or these account characteristics:
+
+-- Whether an account has a credit card or not
+
+-- Whether an account has a loan or not
+
+-- The average balance for the account
+
+```{r include=FALSE}
+library(reticulate)
+py_install('pandas')
+py_install('numpy')
+py_install('matplotlib')
+py_install('plotly')
+```
+
+```{python include=FALSE}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.offline as py
+```
+
+
+```{python include=FALSE}
+accounts = pd.read_csv('~/Desktop/503data/accounts_analytical.csv')
+accounts['avg_balance'] = (accounts.min_balance + accounts.max_balance)/2
+accounts['has_credit_cards'] = accounts.credit_cards.apply(lambda x: 'Has Credit Cards' if x >0 else 'No Credit Cards')
+accounts['has_loans'] =accounts.loan_date.apply(lambda x: 'No loans' if pd.isna(x) else 'Has loans')
+accounts['type'] = accounts['has_credit_cards'] + ', ' + accounts['has_loans']
+
+```
+
+```{python include=FALSE}
+fig = px.scatter(accounts, 
+                 x="account_id", 
+                 y="avg_balance", 
+                 color="type",
+                 title = 'Accounts Characteristics'
+                )
+py.plot(fig, filename = "styled-scatter.html", auto_open=False)
+```
+
+
+```{r, echo=FALSE}
+htmltools::includeHTML("styled-scatter.html")
+```
+
+
+#### Problem 2
+
+What is the distribution of all loans and what are their characteristics?
+
+```{r include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+```
+
+
+
+```{r include=FALSE}
+accounts = read.csv('~/Desktop/503data/accounts_analytical.csv')
+df=accounts[c('account_id','loan_date','loan_amount','loan_payment', 'loan_term','loan_status','loan_default')]
+
+```
+
+
+```{r, echo=FALSE, warning = FALSE}
+# distribution of loan amount
+g1=ggplot(data=df,mapping=aes(x=loan_amount))+
+  geom_histogram(binwidth = 2000)+
+  labs(x='Loan Amount',y='Number of Loans',title='Distribution of Loan Amount')
+g1
+
+# distribution of loan payments
+g2=ggplot(data=df,mapping=aes(x=loan_payment))+
+  geom_histogram(binwidth = 50)+
+  labs(x='Loan payment',y='Count',title='Distribution of Loan Payment')
+g2
+
+# loan status histogram
+df['loan_status'][df['loan_status']==''] = 'NA'
+g3=ggplot(data=df,mapping=aes(x=loan_status,fill=loan_status))+
+  geom_bar(show.legend = TRUE)+
+  scale_fill_manual(values=c("red", "blue", "yellow"))+
+  labs(x='Loan Status',y='Count of Status',title='Loan Status Histogram',size=1)
+g3
+
+# loan default histogram
+df['loan_default'][is.na(df['loan_default'])] <- 'NA'
+
+g4=ggplot(data=df,mapping=aes(x=loan_default,fill=loan_default))+
+  geom_bar(show.legend = TRUE)+
+  scale_fill_manual(values=c("green", "orange", "purple"))+
+  labs(x='Loan Default',y='Count',title='Loan Default Character')
+g4
+
+# loan term  histogram
+df['loan_term'][is.na(df['loan_term'])] <- 'NA'
+
+g5=ggplot(data=df,mapping=aes(x=loan_term,fill=loan_term))+
+  geom_bar(show.legend = TRUE)+
+  scale_fill_manual(values=c("green", "black", 'pink', 'yellow', 'navy', 'red'))+
+  labs(x='Loan Term',y='Count',title='Loan Term Histogram')
+g5
+```
+
+
+By visulizing these distributions and histogram, it's easy to notice the loan amount annd loan payment are skewed, which means most people have relative smaller amount of loans and low payments. Within customers who have or had loans, we can see more loans are current, less loans are expired. Based on loan defalut column, more loans are good.And we have similar numbers of loans within different terms. 
+
+
+#### Problem 3
+
+Is there a relationship between a good or bad loan and the time between an account is opened an the loan is created? Is there a specific set of accounts that seem to be at higher or lower risk of defaulting?
+
+```{r include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r include=FALSE}
+accounts = read.csv('~/Desktop/503data/accounts_analytical.csv')
+
+df_3 = accounts[c('account_id', 'acct_creation_date', 'loan_date', 'loan_default')]
+df_3 = df_3 %>% drop_na() # drop the NA value 
+
+start = as_date(df_3$acct_creation_date)
+end = as_date(df_3$loan_date)
+
+date_diff = as.data.frame(as.integer(end-start))
+
+df_3['date_diff'] = date_diff
+```
+
+
+```{r, echo=FALSE}
+# bad loans 
+df_3_bad = df_3[which(df_3$loan_default==TRUE),]
+g1 = ggplot(data = df_3_bad, mapping=aes(x=date_diff))+
+  geom_histogram(binwidth = 25, color = 'blue')+
+  labs(x='date difference', y='Count', title='Bad Loans Distribution')
+g1
+
+# good loans 
+df_3_good = df_3[which(df_3$loan_default==FALSE),]
+g2 = ggplot(data=df_3_good, mapping=aes(x=date_diff))+
+  geom_histogram(binwidth = 25, color = 'orange')+
+  labs(x='date difference', y='Count', title='Good Loans Distribution')
+g2
+```
+
+
+I do not think there is clear relationship between good or bad loans and time difference. From distributions, the only thing can be noticed would be when date difference becomes long, then we have less bad loans there and more good loans. But just based on this dataset and not looking at other factors, this is kind of unconvincing. 
+
+#### Problem 4
+
+For the account with the highest number of transactions, make a time series line plot for the behavior of the account over time, including all debits and credits, the different methods, and the with the different categories.
+
+```{r include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(tidyverse)
+library(lubridate)
+library(tseries) 
+```
+
+
+```{r include=FALSE}
+accounts = read.csv('~/Desktop/503data/accounts_analytical.csv')
+transaction = read.csv('~/Desktop/503data/transactions.csv')
+
+df_4 = transaction %>% group_by(account_id) %>% count()
+df_4_1 = df_4[which(df_4$n == max(df_4$n)),]
+df_4_2 = transaction[which(transaction$account_id == 8261),]
+
+```
+
+```{r, echo=FALSE, warning = FALSE}
+plot(ts(df_4_2$amount), xlab='transaction records', ylab='transaction amount', main = 'Time Series Of Transaction Amount')
+plot(ts(df_4_2$balance), xlab='transaction records', ylab='balance amount', main = 'Time Series Of Balance Amount')
+```
+
+
+
+#### Problem 5
+
+Explore the validity of the data for the case whether or not an account has a credit card and whether or not they have associated credit card transactions. Is there anything worth noting?
+
+```{r include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(tidyverse)
+library(lubridate)
+library(tseries) 
+```
+
+
+```{r include=FALSE}
+account=read.csv('~/Desktop/503data/accounts_analytical.csv')
+transaction=read.csv('~/Desktop/503data/transactions.csv')
+
+df_5  = transaction[which(transaction$method=='credit card'),] 
+df_5_1 = df_5 %>% group_by(account_id) %>% count() #807 rows
+
+df_6 = account[which(account$credit_cards>0),] %>% group_by(account_id) # 725 rows
+df_6 = df_6 %>% select(c('account_id', 'credit_cards'))
+# join the information 
+df_7 = df_6 %>% full_join(df_5_1, by = "account_id") %>% drop_na() #139 rows 
+
+data = data.frame(x=c('have credit card transactions','have credit cards','have credit card and transactions'), count=c(nrow(df_5_1),nrow(df_6),nrow(df_7)))
+
+```
+
+```{r, echo=FALSE}
+ggplot(data = data,mapping=aes(x=x,y=count, fill=count))+
+  geom_col(width=0.5,show.legend = TRUE)+
+  geom_text(aes(label = count), size=6, show.legend = TRUE)+
+  labs(x='', y='Count', title = 'Histogram Of Different Account Types')
+```
+
+
+Clearly the dataset is not complete, because not all the credit card transactions have records of the credit card associated with the account id. 
+
+
+
+

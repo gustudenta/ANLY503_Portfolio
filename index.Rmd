@@ -1,9 +1,23 @@
 ---
-title: "My Website"
+title: "ANLY503 Portfolio"
 ---
 
-Hello, Website!
+<br>
+<center>
+![](~/Desktop/503data/data_background.png)
+</center>
 
-For more information about simple R Markdown websites, please read the documentation at https://bookdown.org/yihui/rmarkdown/rmarkdown-site.html.
+<br>
+<font size = '5' color ='grey'>Data visualization matters, because it helps human brain to understand and detect patterns, trends, and outliers in the data. Data visualization is a subject of art, because there is a large amount of plot types, and each one has its own magic. For example, bar chart can show the proportion and line chart can easily show the trend. There are so many data visualization tools, for instance, R, Python, Tableau, Power BI, etc. </font>
 
-Please also note that simple R Markdown sites are _not_ based on **blogdown**. They are probably good for websites with only a few Rmd documents. For larger-scale and more sophisticated websites (such as blogs), you may want to use **blogdown** instead: https://github.com/rstudio/blogdown.
+<br>
+<font size = '5' color ='grey'>This website contains all visualization work in ANLY503 course at Georgetown University. All of them are finished in R. Here are some introductions of each section.
+
+Project: This is a music data project involving different genres, artist around the world and over years. It contains all visualization techniques I learned in this course and accomplished in R. 
+
+A5: static visualization assignment, which asks to create some plots directly based on the fact. For example, whether an account has a credit card or not, what is the distribution of all loans and what are their characteristics, etc.
+
+A6: geospatial visualization assignment, which is to visualize historical US election data and unemployment rates across US counties using choropleths.
+
+A7: network graph assignment, which requires to visualize the flow of people between different states in the United States over the period of one year. </font>
+

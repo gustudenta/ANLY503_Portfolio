@@ -1,0 +1,194 @@
+
+### ANLY 503 Assignment 7
+
+### Network Graph 
+
+
+```{r include=FALSE}
+library(dplyr)
+library(magrittr)
+library(circlize)
+library(tidygraph)
+library(tidyxl)
+library(janitor)
+library(tidyverse)
+library(igraph)
+```
+
+```{r include=FALSE}
+library(reticulate)
+py_install('pandas')
+py_install('numpy')
+py_install('matplotlib')
+py_install('plotly')
+py_install('networkx')
+```
+
+
+
+```{python include=FALSE}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.offline as py
+import networkx as nx
+import random
+```
+
+
+
+```{python include=FALSE}
+df = pd.read_excel('~/Desktop/503data/State_to_State_Migrations_Table_2018.xls', skiprows = 6)
+df.rename(columns={'Unnamed: 0': 'index'}, inplace=True)
+columns = list(df.columns)
+df = df[[x for x in columns if 'Unnamed' not in x]]
+df = df.loc[df['index'].isin(columns)]
+df = df.drop('Total', 1)
+df = df.drop(['Foreign Country', 'U.S. Island Area', 'Puerto Rico', 'Total.1'], axis=1)
+df = df[df['index'] != 'Puerto Rico'] 
+df
+```
+
+
+
+```{python include=FALSE}
+ny = df[['index', 'New York']].reset_index(drop= True)
+ny['source'] = "New York"
+ny = ny.rename(columns={'index': 'target', 'New York':'count'})[['source', 'target', 'count']]
+ny = ny.sort_values('count', ascending = False).head(10).reset_index(drop = True)
+ny
+```
+
+
+
+
+```{python include=FALSE}
+tx = df[['index', 'Texas']].reset_index(drop= True)
+tx['source'] = "Texas"
+tx = tx.rename(columns={'index': 'target', 'Texas':'count'})[['source', 'target', 'count']]
+tx = tx.sort_values('count', ascending = False).head(10).reset_index(drop = True)
+tx
+```
+
+
+
+
+```{python include=FALSE}
+ca = df[['index', 'California']].reset_index(drop= True)
+ca['source'] = "California"
+ca = ca.rename(columns={'index': 'target', 'California':'count'})[['source', 'target', 'count']]
+ca = ca.sort_values('count', ascending = False).head(10).reset_index(drop = True)
+ca
+```
+
+
+
+
+```{python include=FALSE}
+va = df[['index', 'Virginia']].reset_index(drop= True)
+va['source'] = "Virginia"
+va = va.rename(columns={'index': 'target', 'Virginia':'count'})[['source', 'target', 'count']]
+va = va.sort_values('count', ascending = False).head(10).reset_index(drop = True)
+va
+```
+
+
+
+```{python include=FALSE}
+final_data = pd.concat([ny, tx, ca, va]).reset_index(drop= True)
+#final_data.to_csv('cleaned_data.csv', index = False)
+#final_data
+```
+
+
+#### Create network graph in Python
+
+```{python include=FALSE}
+node_list = []
+for i in range(len(final_data)):
+    if final_data['source'][i] not in node_list:
+        node_list.append(final_data['source'][i])
+    if final_data['target'][i] not in node_list:
+        node_list.append(final_data['target'][i])
+node_list
+```
+
+
+```{python include=FALSE}
+G = nx.DiGraph()    
+for i in node_list:
+    G.add_node(i)
+    
+for i in range(len(ny)):
+    G.add_edge(ny['source'][i], ny['target'][i], weight = ny['count'][i], color = 'r') 
+   
+for i in range(len(tx)):
+    G.add_edge(tx['source'][i], tx['target'][i], weight = tx['count'][i], color = 'g') 
+   
+for i in range(len(ca)):
+    G.add_edge(ca['source'][i], ca['target'][i], weight = ca['count'][i], color = 'b') 
+   
+for i in range(len(va)):
+    G.add_edge(va['source'][i], va['target'][i], weight = va['count'][i], color = 'y') 
+    
+pos = nx.circular_layout(G)
+
+edges = G.edges()
+colors = []
+def randomize():
+    r = random.uniform(0, 1)
+    g = random.uniform(0, 1)
+    b = random.uniform(0, 1)
+    t = (r,g,b)
+    if t in colors:
+        t = randomize()
+    return t 
+for i in range(len(G.nodes())):
+    t = randomize()
+    colors.append(t)
+    
+weights = [G[u][v]['weight'] for u,v in edges]
+norm_weights = [float(i)*50/sum(weights) for i in weights]
+edge_colors = nx.get_edge_attributes(G,'color').values()
+nx.draw_networkx_nodes(G, pos, node_size = 500, node_color = colors)
+nx.draw_networkx_edges(G, pos,node_size=300, arrowstyle="->", arrowsize=10,width = norm_weights, edge_color = edge_colors)
+nx.draw_networkx_labels(G, pos, font_size=8)
+
+```
+
+
+```{python echo = FALSE}
+plt.show()
+```
+
+
+#### Create network graph in R
+
+```{r include=FALSE}
+data2 = read.csv('~/Desktop/503data/A7_cleaned_data.csv')
+```
+
+```{r echo=FALSE}
+chordDiagram(data2, annotationTrack = "grid", 
+    preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(data2))))))
+circos.track(track.index = 1, panel.fun = function(x, y) {
+    circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index, 
+        facing = "clockwise", niceFacing = TRUE,  adj = c(0, 0.8),cex=0.5)}, bg.border = NA) 
+circos.clear()
+```
+
+
+Comments:
+
+By looking at New York, it is clear that more people move to New Jersey than South Carolina, because the edge between New Jersey and New York is wider than the edge between South Carolina and New York.
+By looking at Texas, it is clear that more people move to California than Arkansas, because the edge between California and Texas is wider than the edge between Arkansas and Texas.
+By looking at California, it is clear that more people move to Texas than Idaho, because the edge between Texas and California is wider than the edge between Idaho and California.
+By looking at Virginia, it is clear that more people move to Florida than District of Columbia, because the edge between Florida and Virginia is wider than the edge between District of Columbia and Virginia
+
+
+
+
+
+
+

@@ -1,9 +1,18 @@
-name: "my-website"
+name: "My Website"
 output_dir: 'docs'
 navbar:
-  title: "My Website"
+  title: "Jingyu's Website"
   left:
     - text: "Home"
       href: index.html
+    - text: "Project"
+      href: project.html
+    - text: 'A5'
+      href: A5.html
+    - text: 'A6'
+      href: A6.html
+    - text: 'A7'
+      href: A7.html
     - text: "About"
       href: about.html
+
