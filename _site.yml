@@ -5,13 +5,13 @@ navbar:
   left:
     - text: "Home"
       href: index.html
-    - text: "Project"
+    - text: "Final Project"
       href: project.html
-    - text: 'A5'
+    - text: 'A5: Static Visualization'
       href: A5.html
-    - text: 'A6'
+    - text: 'A6: Geospatial Visualization'
       href: A6.html
-    - text: 'A7'
+    - text: 'A7: Network Visualization'
       href: A7.html
     - text: "About"
       href: about.html
