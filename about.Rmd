@@ -4,6 +4,6 @@ title: "About Me"
 
 |   |   |
 |---|---|
-|![image](~/Desktop/503data/photo.jpg){width=400px}| <font size = '4' color ='grey'>My name is Jingyu Zhang, and I'm a data science graduate student at Georgetown University. I gained my bachelor degree in Economics at the University of Minnesota. I've always been passionate about analyzing large dataset to discover interesting findings. I dream to become a data scientist to serve as a trusted adviser and strategic partner to my future companny by prodividing data-driven decisions.  <br><br> Please feel free to contact me if you are  also a data person! <br> Email: jz649@georgetown.edu <br> LinkedIn: https://www.linkedin.com/in/tiffany-zhang1995/ </font>|
+|![image](photo.jpg){width=400px}| <font size = '4' color ='grey'>My name is Jingyu Zhang, and I'm a data science graduate student at Georgetown University. I gained my bachelor degree in Economics at the University of Minnesota. I've always been passionate about analyzing large dataset to discover interesting findings. I dream to become a data scientist to serve as a trusted adviser and strategic partner to my future companny by prodividing data-driven decisions.  <br><br> Please feel free to contact me if you are  also a data person! <br> Email: jz649@georgetown.edu <br> LinkedIn: https://www.linkedin.com/in/tiffany-zhang1995/ </font>|
 
 

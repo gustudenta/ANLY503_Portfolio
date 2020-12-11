@@ -15,4 +15,7 @@ navbar:
       href: A7.html
     - text: "About"
       href: about.html
-
+  right:
+    - icon: fa-github fa-lg
+      href: https://github.com/gustudenta/ANLY503_Portfolio
+      

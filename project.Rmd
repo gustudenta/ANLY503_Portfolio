@@ -2,7 +2,11 @@
 title: "Music Visual Analysis"
 output: 
   flexdashboard::flex_dashboard:
+    navbar:
+      - { title: "Homepage", href: index.html, align: right }
     storyboard: true
+    social: [ "twitter", "facebook", "menu" ]
+    source_code: embed
     #orientation: columns
     #vertical_layout: scroll
 ---
@@ -152,7 +156,6 @@ EDA {.storyboard}
 
 ```{r, fig.width= 10, fig.height= 7}
 data = read.csv('~/Desktop/503data/data.csv')
-data = data %>% rename(duration = duration_ms)
 
 data %>%
   keep(is.numeric) %>% 
@@ -185,10 +188,7 @@ ggplot(data_2020, aes(x = name, y = popularity, main="Top Music in 2020")) +
   ggtitle("Top Music in 2020")+
          coord_flip() + scale_y_continuous(name="Popularity") +
   scale_x_discrete(name="Song Name") + theme_tiffany()
-#theme(axis.text.x = element_text(face="bold", color="#008000",
-#                           size=8, angle=0),
-#          axis.text.y = element_text(face="bold", color="#008000",
-#                           size=8, angle=0))
+
 ```
 
 ---
@@ -242,7 +242,7 @@ Last.fm suffers from the problem of multiple artists sharing the same profile pa
 
 ### Network Analysis On Countries V.S. Music Genres (focusing on USA, Japan, Germany)
 
-```{r}
+```{r, warning=FALSE}
 country_genre = read.csv('~/Desktop/503data/top50contry.csv')
 cleaned_data = country_genre %>% count(country, top.genre, sort = TRUE)
 cleaned_data = cleaned_data %>% filter(
@@ -282,8 +282,7 @@ par(mar=rep(0, 4))
 plot.new()
 text(x=0.5, y=0.5, "Popular Music Artists In Japan")
 
-wordcloud(words = japan_data$Group.1, freq = japan_data$x, min.freq = 5, scale=c(2, .2),random.color = FALSE,        
-          max.words=200, random.order=FALSE, colors= c("lightsteelblue1","lightsteelblue2","lightsteelblue3","lightsteelblue"))
+wordcloud(words = japan_data$Group.1, freq = japan_data$x, min.freq = 5, scale=c(2, .2),random.color = FALSE, max.words=200, random.order=FALSE, colors= c("lightsteelblue1","lightsteelblue2","lightsteelblue3","lightsteelblue"))
 ```
 
 ---
@@ -309,9 +308,7 @@ nodes <- data.frame(
 cleaned_data$IDsource <- match(cleaned_data$country, nodes$name)-1 
 cleaned_data$IDtarget <- match(cleaned_data$top.genre, nodes$name)-1
 
-p <- sankeyNetwork(Links = cleaned_data, Nodes = nodes, Source = "IDsource", Target = "IDtarget", 
-              Value = "n", NodeID = "name", fontSize = 12, nodeWidth = 30, units = 'TWh', 
-              LinkGroup = 'country')
+p <- sankeyNetwork(Links = cleaned_data, Nodes = nodes, Source = "IDsource", Target = "IDtarget", Value = "n", NodeID = "name", fontSize = 12, nodeWidth = 30, units = 'TWh', LinkGroup = 'country')
 #p <- htmlwidgets::prependContent(p, htmltools::tags$h1("Sankey Network Diagram Between Countries And Genre"))
 p
 ```
@@ -319,6 +316,28 @@ p
 --- 
 
 Then I also take a look at music genres within India, Canada, and France. Clearly, these three countries all like Canadian pop music, rap, annd electronic pop music. Indian's favorite is desi pop, and French people's favorite is French Hip Pop music. 
+
+
+
+### Popular Genre Around The World
+
+```{r}
+data2 = read.csv('~/Desktop/503data/top50contry.csv')
+y = data2 %>% count(top.genre, sort = TRUE)
+y = y[order(-y$n),]
+y = head(y,15)
+
+ggplot(y, aes(x = top.genre, y = n, main="Top 15 Genre In The World")) +
+         geom_bar(stat = "identity") +
+  ggtitle("Top 15 Genre In The World")+
+         coord_flip() + 
+  scale_y_continuous(name="Frequency") +
+  scale_x_discrete(name="Genre") + theme_tiffany()
+```
+
+---
+
+Based on top 50 songs around the world from 1942 and 2019, I created a horizontal bar chart to show the top 15 genre with high frequency. Since the data was extracted during Christmas period, people listen to a lot of old music which is in 'Adult Standards' genre. And people also like different kinds of pop music. 
 
 
 

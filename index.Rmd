@@ -4,7 +4,7 @@ title: "ANLY503 Portfolio"
 
 <br>
 <center>
-![](~/Desktop/503data/data_background.png)
+![](data_background.png)
 </center>
 
 <br>
